@@ -275,6 +275,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
     <button class="btn btn-primary admin-only" onclick="openEditModal()" style="display:none">✏️ データ修正</button>
     <button class="btn btn-danger admin-only" onclick="openDeactivateModal()" style="display:none">🚫 取扱中止</button>
     <button class="btn btn-success admin-only" onclick="openAddModal()" style="display:none">➕ 新規追加</button>
+    <button class="btn btn-dark admin-only" onclick="openPhotoManager()" style="display:none">📷 写真管理</button>
     <button class="btn btn-warning admin-only" onclick="resetData()" style="display:none">🔄 リセット</button>
     <button class="btn btn-dark" id="modeBtn" onclick="toggleMode()">🔒 ビューアー</button>
     <button class="btn btn-outline" id="langBtn" onclick="toggleLang()" style="font-size:12px;padding:5px 10px">🌐 EN</button>
@@ -432,6 +433,15 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
   </div>
 </div>
 
+<!-- Photo Manager Modal -->
+<div class="overlay" id="photoMgrOverlay">
+  <div class="modal" style="max-width:750px">
+    <button class="modal-close" onclick="closeModal('photoMgrOverlay')">&times;</button>
+    <h2 id="photoMgrTitle">📷 店舗写真管理</h2>
+    <div id="photoMgrContent"></div>
+  </div>
+</div>
+
 <script>
 const DB_KEY='square_store_db_v5';
 const RETAILERS=['Yodobashi','BicCamera','Yamada-Denki','EDION','Costco','Nojima','Joshin'];
@@ -541,7 +551,26 @@ const I18N={
   resetConfirm:{ja:'データをリセットしてデモデータに戻しますか？\nこの操作は取り消せません。',en:'Reset to demo data?\nThis cannot be undone.'},
   lblProductsColon:{ja:'取扱製品',en:'Products'},
   lblFixtureColon:{ja:'什器',en:'Fixture'},
-  none:{ja:'なし',en:'None'}
+  none:{ja:'なし',en:'None'},
+  btnPhotoMgr:{ja:'📷 写真管理',en:'📷 Photos'},
+  photoMgrTitle:{ja:'📷 店舗写真管理',en:'📷 Store Photo Manager'},
+  pmTabAdd:{ja:'写真設定を追加',en:'Add Photo Setting'},
+  pmTabList:{ja:'設定済み一覧',en:'Current Settings'},
+  pmFolder:{ja:'フォルダ名',en:'Folder Name'},
+  pmFolderHint:{ja:'例: yodobashi-akiba（半角英数・ハイフン）',en:'e.g. yodobashi-akiba (alphanumeric + hyphen)'},
+  pmCount:{ja:'写真枚数',en:'Photo Count'},
+  pmCountHint:{ja:'photos/{folder}/01.jpg 〜 の連番枚数',en:'Number of sequential files: photos/{folder}/01.jpg ...'},
+  pmSaveOk:{ja:'✅ 写真設定を保存しました',en:'✅ Photo setting saved'},
+  pmDeleteOk:{ja:'✅ 写真設定を削除しました',en:'✅ Photo setting removed'},
+  pmNoPhotos:{ja:'写真が設定されている店舗はありません',en:'No stores have photo settings'},
+  pmRequired:{ja:'フォルダ名と写真枚数は必須です',en:'Folder name and photo count are required'},
+  pmDeleteConfirm:{ja:'この店舗の写真設定を削除しますか？',en:'Remove photo setting for this store?'},
+  pmNote:{ja:'※ 写真ファイル自体は GitHub リポジトリの photos/ フォルダに手動で追加してください',en:'※ Photo files must be manually added to the photos/ folder in the GitHub repo'},
+  pmStoreCol:{ja:'店舗名',en:'Store Name'},
+  pmFolderCol:{ja:'フォルダ',en:'Folder'},
+  pmCountCol:{ja:'枚数',en:'Count'},
+  pmActionCol:{ja:'操作',en:'Action'},
+  pmBtnRemove:{ja:'🗑️ 削除',en:'🗑️ Remove'}
 };
 function t(key){return (I18N[key]&&I18N[key][curLang])||key}
 function toggleLang(){
@@ -559,6 +588,7 @@ function applyLang(){
   document.querySelector('[onclick="openDeactivateModal()"]').innerHTML=t('btnDeact');
   document.querySelector('[onclick="openAddModal()"]').innerHTML=t('btnAdd');
   document.querySelector('[onclick="resetData()"]').innerHTML=t('btnReset');
+  document.querySelector('[onclick="openPhotoManager()"]').innerHTML=t('btnPhotoMgr');
   // Tabs
   document.querySelector('[data-tab="list"]').innerHTML=t('tabList');
   document.querySelector('[data-tab="city"]').innerHTML=t('tabCity');
@@ -1295,6 +1325,102 @@ function saveAdd(){
   };
   stores.push(s);saveData();renderAll();
   closeModal('addOverlay');
+}
+
+// Photo Manager
+let pmTab='list';
+function openPhotoManager(){
+  pmTab='list';
+  renderPhotoManager();
+  openModal('photoMgrOverlay');
+}
+function renderPhotoManager(){
+  document.getElementById('photoMgrTitle').textContent=t('photoMgrTitle');
+  const c=document.getElementById('photoMgrContent');
+  const photoStores=stores.filter(s=>s.photoFolder&&s.photoCount);
+  // Tab buttons
+  let html=`<div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn ${pmTab==='list'?'btn-primary':'btn-outline'}" style="${pmTab==='list'?'':'color:#333;border-color:#ccc'}" onclick="pmTab='list';renderPhotoManager()">${t('pmTabList')}</button>
+    <button class="btn ${pmTab==='add'?'btn-primary':'btn-outline'}" style="${pmTab==='add'?'':'color:#333;border-color:#ccc'}" onclick="pmTab='add';renderPhotoManager()">${t('pmTabAdd')}</button>
+  </div>`;
+  if(pmTab==='list'){
+    if(!photoStores.length){
+      html+=`<p class="no-data">${t('pmNoPhotos')}</p>`;
+    } else {
+      html+=`<div class="table-wrap"><table><thead><tr>
+        <th style="background:var(--dark);color:#fff">Retailer</th>
+        <th style="background:var(--dark);color:#fff">${t('pmStoreCol')}</th>
+        <th style="background:var(--dark);color:#fff">${t('pmFolderCol')}</th>
+        <th style="background:var(--dark);color:#fff">${t('pmCountCol')}</th>
+        <th style="background:var(--dark);color:#fff">${t('pmActionCol')}</th>
+      </tr></thead><tbody>`;
+      photoStores.sort((a,b)=>a.retailer.localeCompare(b.retailer)||a.storeName.localeCompare(b.storeName));
+      photoStores.forEach(s=>{
+        html+=`<tr>
+          <td>${s.retailer}</td>
+          <td>${s.storeName}</td>
+          <td><code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px">${s.photoFolder}</code></td>
+          <td style="text-align:center">${s.photoCount}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="removePhotoSetting('${s.id}')">${t('pmBtnRemove')}</button></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+    }
+    html+=`<p style="font-size:11px;color:var(--text-light);margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px">${t('pmNote')}</p>`;
+  } else {
+    // Add tab: Retailer → Store → Folder + Count
+    html+=`<div class="form-group"><label>${t('selectRetailer')}</label>
+      <select id="pm_retailer" onchange="pmRetailerChange()"><option value="">${t('selectFirst')}</option>${RETAILERS.map(r=>`<option value="${r}">${r}</option>`).join('')}</select></div>
+    <div class="form-group"><label>${t('selectStore')}</label>
+      <select id="pm_store"><option value="">${t('selectRetailerFirst')}</option></select></div>
+    <div class="form-group"><label>${t('pmFolder')}</label>
+      <input id="pm_folder" placeholder="${t('pmFolderHint')}">
+      <span style="font-size:11px;color:var(--text-light)">${t('pmFolderHint')}</span></div>
+    <div class="form-group"><label>${t('pmCount')}</label>
+      <input id="pm_count" type="number" min="1" max="99" placeholder="3">
+      <span style="font-size:11px;color:var(--text-light)">${t('pmCountHint')}</span></div>
+    <div id="pmMsg" style="min-height:20px;font-size:12px;margin-top:4px"></div>
+    <div class="modal-actions"><button class="btn btn-success" onclick="savePhotoSetting()">${t('btnSave')}</button></div>
+    <p style="font-size:11px;color:var(--text-light);margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px">${t('pmNote')}</p>`;
+  }
+  c.innerHTML=html;
+}
+function pmRetailerChange(){
+  const r=document.getElementById('pm_retailer').value;
+  const sel=document.getElementById('pm_store');
+  if(!r){sel.innerHTML=`<option value="">${t('selectRetailerFirst')}</option>`;return}
+  const filtered=stores.filter(s=>s.retailer===r);
+  sel.innerHTML=`<option value="">${t('selectFirst')}</option>`+filtered.map(s=>{
+    const hasPhoto=s.photoFolder?` 📷`:'';
+    return `<option value="${s.id}">${s.storeName}${hasPhoto}</option>`;
+  }).join('');
+}
+function savePhotoSetting(){
+  const storeId=document.getElementById('pm_store').value;
+  const folder=document.getElementById('pm_folder').value.trim();
+  const count=parseInt(document.getElementById('pm_count').value);
+  const msg=document.getElementById('pmMsg');
+  if(!storeId||!folder||!count||count<1){msg.innerHTML=`<span style="color:var(--red)">${t('pmRequired')}</span>`;return}
+  const idx=stores.findIndex(s=>s.id===storeId);
+  if(idx>=0){
+    stores[idx].photoFolder=folder;
+    stores[idx].photoCount=count;
+    saveData();renderAll();
+    msg.innerHTML=`<span style="color:var(--green)">${t('pmSaveOk')}</span>`;
+    // Pre-fill cleared
+    document.getElementById('pm_folder').value='';
+    document.getElementById('pm_count').value='';
+  }
+}
+function removePhotoSetting(id){
+  if(!confirm(t('pmDeleteConfirm')))return;
+  const idx=stores.findIndex(s=>s.id===id);
+  if(idx>=0){
+    delete stores[idx].photoFolder;
+    delete stores[idx].photoCount;
+    saveData();renderAll();
+    renderPhotoManager();
+  }
 }
 
 function resetData(){
