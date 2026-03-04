@@ -253,6 +253,21 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
 </head>
 <body>
 
+<!-- Login Gate -->
+<div id="loginGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dark);z-index:999;display:flex;justify-content:center;align-items:center">
+  <div style="background:#fff;border-radius:12px;padding:36px;max-width:400px;width:90%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+    <h1 style="font-size:20px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:8px"><span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:4px;font-size:14px">■</span> Square Store Manager</h1>
+    <p style="color:var(--text-light);font-size:13px;margin-bottom:20px">Enter PIN to access</p>
+    <div class="pin-input">
+      <input type="password" maxlength="1" id="lpin1" oninput="loginPinNext(1)" onkeydown="loginPinKey(event,1)">
+      <input type="password" maxlength="1" id="lpin2" oninput="loginPinNext(2)" onkeydown="loginPinKey(event,2)">
+      <input type="password" maxlength="1" id="lpin3" oninput="loginPinNext(3)" onkeydown="loginPinKey(event,3)">
+      <input type="password" maxlength="1" id="lpin4" oninput="loginPinNext(4)" onkeydown="loginPinKey(event,4)">
+    </div>
+    <div id="loginError" class="pin-error"></div>
+  </div>
+</div>
+
 <header>
   <h1><span class="sq">■</span> Square 販売店舗管理</h1>
   <div class="header-actions">
@@ -1021,7 +1036,7 @@ function pinNext(n){
   if(v&&n<4)document.getElementById('pin'+(n+1)).focus();
   if(n===4&&v){
     const pin=[1,2,3,4].map(i=>document.getElementById('pin'+i).value).join('');
-    if(pin==='1234'){isAdmin=true;updateMode();closeModal('pinOverlay')}
+    if(pin==='3618'){isAdmin=true;updateMode();closeModal('pinOverlay')}
     else{document.getElementById('pinError').textContent=t('pinError');for(let i=1;i<=4;i++)document.getElementById('pin'+i).value='';document.getElementById('pin1').focus()}
   }
 }
@@ -1268,6 +1283,28 @@ function resetData(){
 document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show')});
 });
+
+// Login Gate
+function loginPinNext(n){
+  const v=document.getElementById('lpin'+n).value;
+  if(v&&n<4)document.getElementById('lpin'+(n+1)).focus();
+  if(n===4&&v){
+    const pin=[1,2,3,4].map(i=>document.getElementById('lpin'+i).value).join('');
+    if(pin==='1234'){
+      document.getElementById('loginGate').style.display='none';
+    } else {
+      document.getElementById('loginError').textContent='Incorrect PIN';
+      for(let i=1;i<=4;i++)document.getElementById('lpin'+i).value='';
+      document.getElementById('lpin1').focus();
+    }
+  }
+}
+function loginPinKey(e,n){
+  if(e.key==='Backspace'&&!document.getElementById('lpin'+n).value&&n>1){
+    document.getElementById('lpin'+(n-1)).focus();
+  }
+}
+setTimeout(()=>document.getElementById('lpin1').focus(),200);
 
 // Init
 loadData();
