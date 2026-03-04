@@ -317,6 +317,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
           <th onclick="sortBy('register')">Register <span class="sort-icon">▲▼</span></th>
           <th style="width:40px;text-align:center">📷</th>
+          <th onclick="sortBy('storeNum')">Store# <span class="sort-icon">▲▼</span></th>
         </tr></thead>
         <tbody id="storeBody"></tbody>
       </table>
@@ -353,6 +354,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortFixtureBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
           <th onclick="sortFixtureBy('register')">Register <span class="sort-icon">▲▼</span></th>
           <th style="width:40px;text-align:center">📷</th>
+          <th onclick="sortFixtureBy('storeNum')">Store# <span class="sort-icon">▲▼</span></th>
         </tr></thead>
         <tbody id="fixtureBody"></tbody>
       </table>
@@ -443,7 +445,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
 </div>
 
 <script>
-const DB_KEY='square_store_db_v5';
+const DB_KEY='square_store_db_v6';
 const RETAILERS=['Yodobashi','BicCamera','Yamada-Denki','EDION','Costco','Nojima','Joshin'];
 const FIXTURES=['Dummy Box','W45 CTU','W45 CTU x 2','W50 CTU','W50 CTU x 2','W90 Endcap - 4SKUs','W90 Endcap - 3SKUs','W180 Inline','Costco Display'];
 const TOKYO23=['千代田区','中央区','港区','新宿区','文京区','台東区','墨田区','江東区','品川区','目黒区','大田区','世田谷区','渋谷区','中野区','杉並区','豊島区','北区','荒川区','板橋区','練馬区','足立区','葛飾区','江戸川区'];
@@ -633,6 +635,12 @@ function applyLang(){
 }
 
 function genId(){return 'SQ-'+String(Math.floor(1000+Math.random()*9000))}
+function nextStoreNum(){
+  const nums=stores.map(s=>s.storeNum?parseInt(s.storeNum.replace('SQ','')):0);
+  const max=nums.length?Math.max(...nums):0;
+  return 'SQ'+String(max+1).padStart(4,'0');
+}
+function genPhotoFolder(s){return s.retailer.toLowerCase().replace(/[^a-z0-9]/g,'')+'-'+s.storeNum}
 
 function generateDemo(){
   const d=[
@@ -754,12 +762,24 @@ function generateDemo(){
     {storeName:'ビックカメラ赤坂見附駅店',retailer:'BicCamera',prefecture:'東京都',city:'東京23区',banchi:'港区赤坂3-1-6',postalCode:'107-0052',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0},
     {storeName:'ビックカメラ立川店',retailer:'BicCamera',prefecture:'東京都',city:'立川市',banchi:'曙町2-12-2',postalCode:'190-0012',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0}
   ];
-  return d.map(s=>({...s,id:genId(),address:s.prefecture+s.city+s.banchi,createdAt:new Date().toISOString()}));
+  let num=1;
+  return d.map(s=>({...s,id:genId(),storeNum:'SQ'+String(num++).padStart(4,'0'),address:s.prefecture+s.city+s.banchi,createdAt:new Date().toISOString()}));
 }
 
 function loadData(){
-  try{const d=localStorage.getItem(DB_KEY);if(d){stores=JSON.parse(d)}else{stores=generateDemo();saveData()}}
-  catch(e){stores=generateDemo();saveData()}
+  try{
+    const d=localStorage.getItem(DB_KEY);
+    if(d){
+      stores=JSON.parse(d);
+      // Migrate: assign storeNum if missing
+      let needSave=false;
+      let num=1;
+      stores.forEach(s=>{if(!s.storeNum){s.storeNum='SQ'+String(num++).padStart(4,'0');needSave=true}else{const n=parseInt(s.storeNum.replace('SQ',''));if(n>=num)num=n+1}});
+      // Migrate: update photoFolder to new naming if old format
+      stores.forEach(s=>{if(s.photoFolder&&s.storeNum&&!s.photoFolder.includes(s.storeNum)){s.photoFolder=genPhotoFolder(s);needSave=true}});
+      if(needSave)saveData();
+    } else {stores=generateDemo();saveData()}
+  } catch(e){stores=generateDemo();saveData()}
 }
 function saveData(){localStorage.setItem(DB_KEY,JSON.stringify(stores))}
 
@@ -872,7 +892,7 @@ function showPhotos(folder,count,name){
 function renderList(){
   const f=getFiltered();
   const body=document.getElementById('storeBody');
-  if(!f.length){body.innerHTML=`<tr><td colspan="12" class="no-data">${t('noData')}</td></tr>`;return}
+  if(!f.length){body.innerHTML=`<tr><td colspan="14" class="no-data">${t('noData')}</td></tr>`;return}
   body.innerHTML=f.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
@@ -886,6 +906,7 @@ function renderList(){
     <td>${boolCell(s.handheld)}</td>
     <td>${boolCell(s.register)}</td>
     <td style="text-align:center">${photoBtn(s)}</td>
+    <td style="font-size:12px;color:var(--text-light);white-space:nowrap">${s.storeNum||''}</td>
   </tr>`).join('');
 }
 
@@ -930,7 +951,7 @@ function renderFixture(){
     });
   }
   const body=document.getElementById('fixtureBody');
-  if(!fs.length){body.innerHTML=`<tr><td colspan="12" class="no-data">${t('noDataFixture')}</td></tr>`;return}
+  if(!fs.length){body.innerHTML=`<tr><td colspan="14" class="no-data">${t('noDataFixture')}</td></tr>`;return}
   body.innerHTML=fs.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
@@ -944,6 +965,7 @@ function renderFixture(){
     <td>${boolCell(s.handheld)}</td>
     <td>${boolCell(s.register)}</td>
     <td style="text-align:center">${photoBtn(s)}</td>
+    <td style="font-size:12px;color:var(--text-light);white-space:nowrap">${s.storeNum||''}</td>
   </tr>`).join('');
 }
 function sortFixtureBy(col){
@@ -1306,6 +1328,7 @@ function saveAdd(){
   const banchi=document.getElementById('a_banchi').value.trim();
   const s={
     id:genId(),
+    storeNum:nextStoreNum(),
     storeName:name,
     retailer:document.getElementById('a_retailer').value,
     prefecture:pref,
@@ -1368,14 +1391,14 @@ function renderPhotoManager(){
     }
     html+=`<p style="font-size:11px;color:var(--text-light);margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px">${t('pmNote')}</p>`;
   } else {
-    // Add tab: Retailer → Store → Folder + Count
+    // Add tab: Retailer → Store → auto folder + Count
     html+=`<div class="form-group"><label>${t('selectRetailer')}</label>
       <select id="pm_retailer" onchange="pmRetailerChange()"><option value="">${t('selectFirst')}</option>${RETAILERS.map(r=>`<option value="${r}">${r}</option>`).join('')}</select></div>
     <div class="form-group"><label>${t('selectStore')}</label>
-      <select id="pm_store"><option value="">${t('selectRetailerFirst')}</option></select></div>
+      <select id="pm_store" onchange="pmStoreChange()"><option value="">${t('selectRetailerFirst')}</option></select></div>
     <div class="form-group"><label>${t('pmFolder')}</label>
-      <input id="pm_folder" placeholder="${t('pmFolderHint')}">
-      <span style="font-size:11px;color:var(--text-light)">${t('pmFolderHint')}</span></div>
+      <input id="pm_folder" readonly style="background:#f0f0f0;color:#666">
+      <span style="font-size:11px;color:var(--text-light)">${curLang==='ja'?'Retailer + Store# から自動生成':'Auto-generated from Retailer + Store#'}</span></div>
     <div class="form-group"><label>${t('pmCount')}</label>
       <input id="pm_count" type="number" min="1" max="99" placeholder="3">
       <span style="font-size:11px;color:var(--text-light)">${t('pmCountHint')}</span></div>
@@ -1388,12 +1411,20 @@ function renderPhotoManager(){
 function pmRetailerChange(){
   const r=document.getElementById('pm_retailer').value;
   const sel=document.getElementById('pm_store');
+  document.getElementById('pm_folder').value='';
   if(!r){sel.innerHTML=`<option value="">${t('selectRetailerFirst')}</option>`;return}
   const filtered=stores.filter(s=>s.retailer===r);
   sel.innerHTML=`<option value="">${t('selectFirst')}</option>`+filtered.map(s=>{
     const hasPhoto=s.photoFolder?` 📷`:'';
     return `<option value="${s.id}">${s.storeName}${hasPhoto}</option>`;
   }).join('');
+}
+function pmStoreChange(){
+  const storeId=document.getElementById('pm_store').value;
+  const folderInput=document.getElementById('pm_folder');
+  if(!storeId){folderInput.value='';return}
+  const s=stores.find(x=>x.id===storeId);
+  if(s)folderInput.value=genPhotoFolder(s);
 }
 function savePhotoSetting(){
   const storeId=document.getElementById('pm_store').value;
