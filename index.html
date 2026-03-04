@@ -815,6 +815,7 @@ function displayCity(city){
 }
 
 function boolCell(v){return v?'<span class="check-true">✓</span>':'<span class="check-false">-</span>'}
+function mapLink(s){const q=encodeURIComponent(s.storeName+' '+(s.address||s.prefecture+s.city+(s.banchi||'')));return `<a href="https://www.google.com/maps/search/${q}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dashed #aaa" title="Google Maps">${s.storeName}</a>`}
 
 function renderList(){
   const f=getFiltered();
@@ -823,7 +824,7 @@ function renderList(){
   body.innerHTML=f.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
-    <td>${s.storeName}</td>
+    <td>${mapLink(s)}</td>
     <td>${s.prefecture}</td>
     <td>${displayCity(s.city)}</td>
     <td>${s.fixture}</td>
@@ -880,7 +881,7 @@ function renderFixture(){
   body.innerHTML=fs.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
-    <td>${s.storeName}</td>
+    <td>${mapLink(s)}</td>
     <td>${s.prefecture}</td>
     <td>${displayCity(s.city)}</td>
     <td>${s.fixture}</td>
