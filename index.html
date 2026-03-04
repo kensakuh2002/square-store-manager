@@ -315,6 +315,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
           <th onclick="sortBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
           <th onclick="sortBy('register')">Register <span class="sort-icon">▲▼</span></th>
+          <th style="width:40px;text-align:center">📷</th>
         </tr></thead>
         <tbody id="storeBody"></tbody>
       </table>
@@ -350,10 +351,20 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortFixtureBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
           <th onclick="sortFixtureBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
           <th onclick="sortFixtureBy('register')">Register <span class="sort-icon">▲▼</span></th>
+          <th style="width:40px;text-align:center">📷</th>
         </tr></thead>
         <tbody id="fixtureBody"></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- Photo Modal -->
+<div class="overlay" id="photoOverlay">
+  <div class="modal" style="max-width:800px">
+    <button class="modal-close" onclick="closeModal('photoOverlay')">&times;</button>
+    <h2 id="photoTitle">📷 Store Photos</h2>
+    <div id="photoContent" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center"></div>
   </div>
 </div>
 
@@ -422,7 +433,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
 </div>
 
 <script>
-const DB_KEY='square_store_db_v4';
+const DB_KEY='square_store_db_v5';
 const RETAILERS=['Yodobashi','BicCamera','Yamada-Denki','EDION','Costco','Nojima','Joshin'];
 const FIXTURES=['Dummy Box','W45 CTU','W45 CTU x 2','W50 CTU','W50 CTU x 2','W90 Endcap - 4SKUs','W90 Endcap - 3SKUs','W180 Inline','Costco Display'];
 const TOKYO23=['千代田区','中央区','港区','新宿区','文京区','台東区','墨田区','江東区','品川区','目黒区','大田区','世田谷区','渋谷区','中野区','杉並区','豊島区','北区','荒川区','板橋区','練馬区','足立区','葛飾区','江戸川区'];
@@ -608,7 +619,7 @@ function generateDemo(){
     {storeName:'ヨドバシカメラ マルチメディア札幌',retailer:'Yodobashi',prefecture:'北海道',city:'札幌市',banchi:'中央区北4条西4丁目1',postalCode:'060-0004',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
     {storeName:'ヨドバシカメラ マルチメディア新宿西口本店',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'新宿区西新宿1-11-1',postalCode:'160-0023',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
     {storeName:'ヨドバシカメラ マルチメディア新宿東口',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'新宿区新宿3-26-7',postalCode:'160-0022',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
-    {storeName:'ヨドバシカメラ マルチメディアAkiba（アキバ）',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'千代田区神田花岡町1-1',postalCode:'101-0028',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
+    {storeName:'ヨドバシカメラ マルチメディアAkiba（アキバ）',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'千代田区神田花岡町1-1',postalCode:'101-0028',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0,photoFolder:'yodobashi-akiba',photoCount:3},
     {storeName:'ヨドバシカメラ マルチメディア上野',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'台東区上野1-18-19',postalCode:'110-0005',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
     {storeName:'ヨドバシカメラ マルチメディア錦糸町',retailer:'Yodobashi',prefecture:'東京都',city:'東京23区',banchi:'墨田区錦糸4-14-1',postalCode:'130-0013',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
     {storeName:'ヨドバシカメラ 京急上大岡店',retailer:'Yodobashi',prefecture:'神奈川県',city:'横浜市',banchi:'港南区上大岡西1-6-1 京急百貨店',postalCode:'233-0002',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:true,fixture:'W180 Inline',population:0},
@@ -816,11 +827,22 @@ function displayCity(city){
 
 function boolCell(v){return v?'<span class="check-true">✓</span>':'<span class="check-false">-</span>'}
 function mapLink(s){const q=encodeURIComponent(s.storeName+' '+(s.address||s.prefecture+s.city+(s.banchi||'')));return `<a href="https://www.google.com/maps/search/${q}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dashed #aaa" title="Google Maps">${s.storeName}</a>`}
+function photoBtn(s){if(!s.photoFolder||!s.photoCount)return '<span style="color:#ccc">-</span>';return `<span style="cursor:pointer;font-size:16px" onclick="showPhotos('${s.photoFolder}',${s.photoCount},'${s.storeName.replace(/'/g,"\\'")}')">📷</span>`}
+function showPhotos(folder,count,name){
+  document.getElementById('photoTitle').textContent='📷 '+name;
+  let html='';
+  for(let i=1;i<=count;i++){
+    const pad=String(i).padStart(2,'0');
+    html+=`<img src="photos/${folder}/${pad}.jpg" style="max-width:100%;border-radius:8px;cursor:pointer" onclick="this.style.maxWidth=this.style.maxWidth==='100%'?'300px':'100%'" onerror="this.style.display='none'">`;
+  }
+  document.getElementById('photoContent').innerHTML=html||'<p style="color:var(--text-light)">No photos available</p>';
+  openModal('photoOverlay');
+}
 
 function renderList(){
   const f=getFiltered();
   const body=document.getElementById('storeBody');
-  if(!f.length){body.innerHTML=`<tr><td colspan="11" class="no-data">${t('noData')}</td></tr>`;return}
+  if(!f.length){body.innerHTML=`<tr><td colspan="12" class="no-data">${t('noData')}</td></tr>`;return}
   body.innerHTML=f.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
@@ -833,6 +855,7 @@ function renderList(){
     <td>${boolCell(s.terminal)}</td>
     <td>${boolCell(s.handheld)}</td>
     <td>${boolCell(s.register)}</td>
+    <td style="text-align:center">${photoBtn(s)}</td>
   </tr>`).join('');
 }
 
@@ -877,7 +900,7 @@ function renderFixture(){
     });
   }
   const body=document.getElementById('fixtureBody');
-  if(!fs.length){body.innerHTML=`<tr><td colspan="11" class="no-data">${t('noDataFixture')}</td></tr>`;return}
+  if(!fs.length){body.innerHTML=`<tr><td colspan="12" class="no-data">${t('noDataFixture')}</td></tr>`;return}
   body.innerHTML=fs.map(s=>`<tr>
     <td><span class="status-badge status-${s.status.toLowerCase()}">${s.status}</span></td>
     <td>${s.retailer}</td>
@@ -890,6 +913,7 @@ function renderFixture(){
     <td>${boolCell(s.terminal)}</td>
     <td>${boolCell(s.handheld)}</td>
     <td>${boolCell(s.register)}</td>
+    <td style="text-align:center">${photoBtn(s)}</td>
   </tr>`).join('');
 }
 function sortFixtureBy(col){
