@@ -276,6 +276,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
     <button class="btn btn-danger admin-only" onclick="openDeactivateModal()" style="display:none">🚫 取扱中止</button>
     <button class="btn btn-success admin-only" onclick="openAddModal()" style="display:none">➕ 新規追加</button>
     <button class="btn btn-dark admin-only" onclick="openPhotoManager()" style="display:none">📷 写真管理</button>
+    <button class="btn btn-outline admin-only" onclick="openSettings()" style="display:none;font-size:12px;padding:5px 10px">⚙️</button>
     <button class="btn btn-warning admin-only" onclick="resetData()" style="display:none">🔄 リセット</button>
     <button class="btn btn-dark" id="modeBtn" onclick="toggleMode()">🔒 ビューアー</button>
     <button class="btn btn-outline" id="langBtn" onclick="toggleLang()" style="font-size:12px;padding:5px 10px">🌐 EN</button>
@@ -441,6 +442,24 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
     <button class="modal-close" onclick="closeModal('photoMgrOverlay')">&times;</button>
     <h2 id="photoMgrTitle">📷 店舗写真管理</h2>
     <div id="photoMgrContent"></div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('settingsOverlay')">&times;</button>
+    <h2>⚙️ 設定</h2>
+    <div class="form-group">
+      <label>GitHub Personal Access Token</label>
+      <input id="ghTokenInput" type="password" placeholder="github_pat_..." style="font-family:monospace;font-size:12px">
+      <span style="font-size:11px;color:var(--text-light)">写真アップロードに必要です</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="saveGhToken()">💾 保存</button>
+      <button class="btn btn-outline" style="color:#333;border-color:#ccc" onclick="clearGhToken()">🗑️ 削除</button>
+    </div>
+    <div id="settingsMsg" style="min-height:20px;font-size:12px;margin-top:8px"></div>
   </div>
 </div>
 
@@ -1391,7 +1410,8 @@ function renderPhotoManager(){
     }
     html+=`<p style="font-size:11px;color:var(--text-light);margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px">${t('pmNote')}</p>`;
   } else {
-    // Add tab: Retailer → Store → auto folder + Count
+    // Add tab: Retailer → Store → auto folder + file upload
+    const hasToken=!!getGhToken();
     html+=`<div class="form-group"><label>${t('selectRetailer')}</label>
       <select id="pm_retailer" onchange="pmRetailerChange()"><option value="">${t('selectFirst')}</option>${RETAILERS.map(r=>`<option value="${r}">${r}</option>`).join('')}</select></div>
     <div class="form-group"><label>${t('selectStore')}</label>
@@ -1399,12 +1419,13 @@ function renderPhotoManager(){
     <div class="form-group"><label>${t('pmFolder')}</label>
       <input id="pm_folder" readonly style="background:#f0f0f0;color:#666">
       <span style="font-size:11px;color:var(--text-light)">${curLang==='ja'?'Retailer + Store# から自動生成':'Auto-generated from Retailer + Store#'}</span></div>
-    <div class="form-group"><label>${t('pmCount')}</label>
-      <input id="pm_count" type="number" min="1" max="99" placeholder="3">
-      <span style="font-size:11px;color:var(--text-light)">${t('pmCountHint')}</span></div>
+    <div class="form-group"><label>${curLang==='ja'?'📎 写真ファイル':'📎 Photo Files'}</label>
+      <input type="file" id="pm_files" multiple accept="image/*" onchange="pmPreviewFiles()" style="padding:8px;border:2px dashed var(--border);border-radius:8px;width:100%;cursor:pointer">
+      <span style="font-size:11px;color:var(--text-light)">${curLang==='ja'?'複数選択可（JPG/PNG）。01.jpg, 02.jpg... の連番でアップロードされます':'Multiple files OK (JPG/PNG). Uploaded as 01.jpg, 02.jpg...'}</span></div>
+    <div id="pmPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+    ${!hasToken?`<p style="font-size:12px;color:var(--orange);padding:8px;background:#fff8e1;border-radius:6px;margin-bottom:8px">⚠️ ${curLang==='ja'?'写真アップロードには ⚙️設定 からGitHub Tokenを設定してください':'Set GitHub Token in ⚙️ Settings to upload photos'}</p>`:''}
     <div id="pmMsg" style="min-height:20px;font-size:12px;margin-top:4px"></div>
-    <div class="modal-actions"><button class="btn btn-success" onclick="savePhotoSetting()">${t('btnSave')}</button></div>
-    <p style="font-size:11px;color:var(--text-light);margin-top:12px;padding:8px;background:#f8f9fa;border-radius:6px">${t('pmNote')}</p>`;
+    <div class="modal-actions"><button class="btn btn-success" onclick="uploadAndSavePhotos()" id="pmUploadBtn">📤 ${curLang==='ja'?'アップロード＆保存':'Upload & Save'}</button></div>`;
   }
   c.innerHTML=html;
 }
@@ -1426,22 +1447,50 @@ function pmStoreChange(){
   const s=stores.find(x=>x.id===storeId);
   if(s)folderInput.value=genPhotoFolder(s);
 }
-function savePhotoSetting(){
+function pmPreviewFiles(){
+  const files=document.getElementById('pm_files').files;
+  const preview=document.getElementById('pmPreview');
+  preview.innerHTML='';
+  if(!files.length)return;
+  for(let i=0;i<files.length;i++){
+    const url=URL.createObjectURL(files[i]);
+    const pad=String(i+1).padStart(2,'0');
+    preview.innerHTML+=`<div style="text-align:center"><img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text-light)">${pad}.jpg</div></div>`;
+  }
+}
+async function uploadAndSavePhotos(){
   const storeId=document.getElementById('pm_store').value;
   const folder=document.getElementById('pm_folder').value.trim();
-  const count=parseInt(document.getElementById('pm_count').value);
+  const files=document.getElementById('pm_files').files;
   const msg=document.getElementById('pmMsg');
-  if(!storeId||!folder||!count||count<1){msg.innerHTML=`<span style="color:var(--red)">${t('pmRequired')}</span>`;return}
-  const idx=stores.findIndex(s=>s.id===storeId);
-  if(idx>=0){
-    stores[idx].photoFolder=folder;
-    stores[idx].photoCount=count;
-    saveData();renderAll();
-    msg.innerHTML=`<span style="color:var(--green)">${t('pmSaveOk')}</span>`;
-    // Pre-fill cleared
-    document.getElementById('pm_folder').value='';
-    document.getElementById('pm_count').value='';
+  if(!storeId||!folder){msg.innerHTML=`<span style="color:var(--red)">${curLang==='ja'?'店舗を選択してください':'Please select a store'}</span>`;return}
+  if(!files.length){msg.innerHTML=`<span style="color:var(--red)">${curLang==='ja'?'写真ファイルを選択してください':'Please select photo files'}</span>`;return}
+  // Disable button during upload
+  const btn=document.getElementById('pmUploadBtn');
+  btn.disabled=true;btn.style.opacity='0.5';
+  const ok=await uploadPhotosToGH(folder,files,msg);
+  if(ok){
+    // Save metadata
+    const idx=stores.findIndex(s=>s.id===storeId);
+    if(idx>=0){
+      stores[idx].photoFolder=folder;
+      stores[idx].photoCount=files.length;
+      saveData();renderAll();
+    }
+    msg.innerHTML=`<span style="color:var(--green)">✅ ${curLang==='ja'?files.length+'枚の写真をアップロードしました':files.length+' photos uploaded successfully'}</span>`;
+    document.getElementById('pmPreview').innerHTML='';
   }
+  btn.disabled=false;btn.style.opacity='1';
+}
+function savePhotoSetting(){
+  // Legacy function kept for compatibility
+  const storeId=document.getElementById('pm_store').value;
+  const folder=document.getElementById('pm_folder').value.trim();
+  const files=document.getElementById('pm_files');
+  const count=files?files.files.length:0;
+  const msg=document.getElementById('pmMsg');
+  if(!storeId||!folder||!count){msg.innerHTML=`<span style="color:var(--red)">${t('pmRequired')}</span>`;return}
+  uploadAndSavePhotos();
 }
 function removePhotoSetting(id){
   if(!confirm(t('pmDeleteConfirm')))return;
@@ -1451,6 +1500,88 @@ function removePhotoSetting(id){
     delete stores[idx].photoCount;
     saveData();renderAll();
     renderPhotoManager();
+  }
+}
+
+// Settings & GitHub API
+const GH_REPO='kensakuh2002/square-store-manager';
+const GH_TOKEN_KEY='sq_gh_token';
+function getGhToken(){return localStorage.getItem(GH_TOKEN_KEY)||''}
+function openSettings(){
+  document.getElementById('ghTokenInput').value=getGhToken();
+  document.getElementById('settingsMsg').textContent='';
+  openModal('settingsOverlay');
+}
+function saveGhToken(){
+  const tk=document.getElementById('ghTokenInput').value.trim();
+  if(!tk){document.getElementById('settingsMsg').innerHTML='<span style="color:var(--red)">トークンを入力してください</span>';return}
+  localStorage.setItem(GH_TOKEN_KEY,tk);
+  document.getElementById('settingsMsg').innerHTML='<span style="color:var(--green)">✅ 保存しました</span>';
+}
+function clearGhToken(){
+  localStorage.removeItem(GH_TOKEN_KEY);
+  document.getElementById('ghTokenInput').value='';
+  document.getElementById('settingsMsg').innerHTML='<span style="color:var(--green)">✅ 削除しました</span>';
+}
+
+async function ghUploadFile(path,base64Content,commitMsg){
+  const token=getGhToken();
+  if(!token)throw new Error('GitHub token not set');
+  // Check if file exists (to get sha for update)
+  let sha=null;
+  try{
+    const chk=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`,{headers:{'Authorization':`Bearer ${token}`}});
+    if(chk.ok){const d=await chk.json();sha=d.sha}
+  }catch(e){}
+  const body={message:commitMsg,content:base64Content};
+  if(sha)body.sha=sha;
+  const res=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`,{
+    method:'PUT',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){const err=await res.json();throw new Error(err.message||'Upload failed')}
+  return await res.json();
+}
+
+async function ghDeleteFile(path,commitMsg){
+  const token=getGhToken();
+  if(!token)throw new Error('GitHub token not set');
+  const chk=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`,{headers:{'Authorization':`Bearer ${token}`}});
+  if(!chk.ok)return; // file doesn't exist
+  const d=await chk.json();
+  const res=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`,{
+    method:'DELETE',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({message:commitMsg,sha:d.sha})
+  });
+  if(!res.ok){const err=await res.json();throw new Error(err.message||'Delete failed')}
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPhotosToGH(folder,files,msgEl){
+  const token=getGhToken();
+  if(!token){msgEl.innerHTML='<span style="color:var(--red)">⚙️ 設定からGitHub Tokenを設定してください</span>';return false}
+  msgEl.innerHTML='<span style="color:var(--blue)">📤 アップロード中... (0/'+files.length+')</span>';
+  try{
+    for(let i=0;i<files.length;i++){
+      const pad=String(i+1).padStart(2,'0');
+      const ext=files[i].name.split('.').pop().toLowerCase();
+      const path=`photos/${folder}/${pad}.${ext==='png'?'png':'jpg'}`;
+      const b64=await fileToBase64(files[i]);
+      await ghUploadFile(path,b64,`Add photo ${pad} to ${folder}`);
+      msgEl.innerHTML=`<span style="color:var(--blue)">📤 アップロード中... (${i+1}/${files.length})</span>`;
+    }
+    return true;
+  }catch(e){
+    msgEl.innerHTML=`<span style="color:var(--red)">❌ エラー: ${e.message}</span>`;
+    return false;
   }
 }
 
