@@ -450,6 +450,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
   <div class="modal" style="max-width:500px">
     <button class="modal-close" onclick="closeModal('settingsOverlay')">&times;</button>
     <h2>⚙️ 設定</h2>
+    <div id="tokenStatus" style="padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
     <div class="form-group">
       <label>GitHub Personal Access Token</label>
       <input id="ghTokenInput" type="password" placeholder="github_pat_..." style="font-family:monospace;font-size:12px">
@@ -1132,7 +1133,7 @@ function pinNext(n){
   if(v&&n<4)document.getElementById('pin'+(n+1)).focus();
   if(n===4&&v){
     const pin=[1,2,3,4].map(i=>document.getElementById('pin'+i).value).join('');
-    if(pin==='0501'){isAdmin=true;updateMode();closeModal('pinOverlay')}
+    if(pin==='0501'){isAdmin=true;updateMode();closeModal('pinOverlay');checkTokenAndUpdateBadge()}
     else{document.getElementById('pinError').textContent=t('pinError');for(let i=1;i<=4;i++)document.getElementById('pin'+i).value='';document.getElementById('pin1').focus()}
   }
 }
@@ -1510,6 +1511,7 @@ function getGhToken(){return localStorage.getItem(GH_TOKEN_KEY)||''}
 function openSettings(){
   document.getElementById('ghTokenInput').value=getGhToken();
   document.getElementById('settingsMsg').textContent='';
+  checkTokenStatus();
   openModal('settingsOverlay');
 }
 function saveGhToken(){
@@ -1517,11 +1519,86 @@ function saveGhToken(){
   if(!tk){document.getElementById('settingsMsg').innerHTML='<span style="color:var(--red)">トークンを入力してください</span>';return}
   localStorage.setItem(GH_TOKEN_KEY,tk);
   document.getElementById('settingsMsg').innerHTML='<span style="color:var(--green)">✅ 保存しました</span>';
+  checkTokenStatus();
+  updateSettingsBadge('checking');
+  setTimeout(()=>checkTokenAndUpdateBadge(),500);
 }
 function clearGhToken(){
   localStorage.removeItem(GH_TOKEN_KEY);
   document.getElementById('ghTokenInput').value='';
   document.getElementById('settingsMsg').innerHTML='<span style="color:var(--green)">✅ 削除しました</span>';
+  document.getElementById('tokenStatus').innerHTML='<span style="color:var(--text-light)">⚪ Token未設定</span>';
+  document.getElementById('tokenStatus').style.background='#f8f9fa';
+  updateSettingsBadge('none');
+}
+async function checkTokenStatus(){
+  const el=document.getElementById('tokenStatus');
+  const token=getGhToken();
+  if(!token){
+    el.innerHTML='<span style="color:var(--text-light)">⚪ Token未設定</span>';
+    el.style.background='#f8f9fa';
+    return;
+  }
+  el.innerHTML='<span style="color:var(--blue)">🔄 確認中...</span>';
+  el.style.background='#e3f2fd';
+  try{
+    const res=await fetch('https://api.github.com/user',{headers:{'Authorization':`Bearer ${token}`}});
+    if(res.ok){
+      const exp=res.headers.get('github-authentication-token-expiration');
+      let expMsg='';
+      if(exp){
+        const expDate=new Date(exp);
+        const now=new Date();
+        const days=Math.ceil((expDate-now)/(1000*60*60*24));
+        if(days<=0){
+          el.innerHTML=`<span style="color:var(--red)">❌ Token期限切れ（${exp}）</span>`;
+          el.style.background='#fde8e8';
+          updateSettingsBadge('expired');
+          return;
+        } else if(days<=7){
+          expMsg=` — ⚠️ 残り${days}日（${expDate.toLocaleDateString()}まで）`;
+        } else {
+          expMsg=` — 残り${days}日（${expDate.toLocaleDateString()}まで）`;
+        }
+      }
+      el.innerHTML=`<span style="color:var(--green)">✅ Token有効${expMsg}</span>`;
+      el.style.background='#e8f5e9';
+      updateSettingsBadge('valid');
+    } else if(res.status===401){
+      el.innerHTML='<span style="color:var(--red)">❌ Token無効または期限切れ</span>';
+      el.style.background='#fde8e8';
+      updateSettingsBadge('expired');
+    } else {
+      el.innerHTML=`<span style="color:var(--orange)">⚠️ 確認エラー (${res.status})</span>`;
+      el.style.background='#fff8e1';
+      updateSettingsBadge('error');
+    }
+  }catch(e){
+    el.innerHTML='<span style="color:var(--orange)">⚠️ ネットワークエラー</span>';
+    el.style.background='#fff8e1';
+    updateSettingsBadge('error');
+  }
+}
+function updateSettingsBadge(status){
+  const btn=document.querySelector('[onclick="openSettings()"]');
+  if(!btn)return;
+  const badges={none:'⚙️',valid:'⚙️✅',expired:'⚙️⚠️',error:'⚙️❓',checking:'⚙️🔄'};
+  btn.textContent=badges[status]||'⚙️';
+}
+async function checkTokenAndUpdateBadge(){
+  const token=getGhToken();
+  if(!token){updateSettingsBadge('none');return}
+  try{
+    const res=await fetch('https://api.github.com/user',{headers:{'Authorization':`Bearer ${token}`}});
+    if(res.ok){
+      const exp=res.headers.get('github-authentication-token-expiration');
+      if(exp){
+        const days=Math.ceil((new Date(exp)-new Date())/(1000*60*60*24));
+        if(days<=0){updateSettingsBadge('expired');return}
+      }
+      updateSettingsBadge('valid');
+    } else {updateSettingsBadge('expired')}
+  }catch(e){updateSettingsBadge('error')}
 }
 
 async function ghUploadFile(path,base64Content,commitMsg){
