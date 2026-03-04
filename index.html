@@ -68,6 +68,8 @@ tr:hover td{background:var(--hover)}
 .status-inactive{background:#fde8e8;color:#c62828}
 .check-true{color:var(--green);font-weight:700;font-size:16px}
 .check-false{color:#ccc;font-size:14px}
+.prod-th{text-align:center!important;white-space:nowrap;min-width:72px;width:72px}
+.prod-td{text-align:center!important}
 .overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center}
 .overlay.show{display:flex}
 .modal{background:#fff;border-radius:12px;padding:28px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);position:relative}
@@ -312,11 +314,11 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortBy('prefecture')">都道府県 <span class="sort-icon">▲▼</span></th>
           <th onclick="sortBy('city')">市区町村 <span class="sort-icon">▲▼</span></th>
           <th onclick="sortBy('fixture')">什器タイプ <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortBy('reader')">Reader <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortBy('stand')">Stand <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortBy('register')">Register <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortBy('reader')">Reader <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortBy('stand')">Stand <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortBy('register')">Register <span class="sort-icon">▲▼</span></th>
           <th style="width:40px;text-align:center">📷</th>
           <th onclick="sortBy('storeNum')">Store# <span class="sort-icon">▲▼</span></th>
         </tr></thead>
@@ -358,11 +360,11 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
           <th onclick="sortFixtureBy('prefecture')">都道府県 <span class="sort-icon">▲▼</span></th>
           <th onclick="sortFixtureBy('city')">市区町村 <span class="sort-icon">▲▼</span></th>
           <th onclick="sortFixtureBy('fixture')">什器タイプ <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortFixtureBy('reader')">Reader <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortFixtureBy('stand')">Stand <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortFixtureBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortFixtureBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
-          <th onclick="sortFixtureBy('register')">Register <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortFixtureBy('reader')">Reader <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortFixtureBy('stand')">Stand <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortFixtureBy('terminal')">Terminal <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortFixtureBy('handheld')">Handheld <span class="sort-icon">▲▼</span></th>
+          <th class="prod-th" onclick="sortFixtureBy('register')">Register <span class="sort-icon">▲▼</span></th>
           <th style="width:40px;text-align:center">📷</th>
           <th onclick="sortFixtureBy('storeNum')">Store# <span class="sort-icon">▲▼</span></th>
         </tr></thead>
@@ -930,11 +932,11 @@ function renderList(){
     <td>${s.prefecture}</td>
     <td>${displayCity(s.city)}</td>
     <td>${s.fixture}</td>
-    <td>${boolCell(s.reader)}</td>
-    <td>${boolCell(s.stand)}</td>
-    <td>${boolCell(s.terminal)}</td>
-    <td>${boolCell(s.handheld)}</td>
-    <td>${boolCell(s.register)}</td>
+    <td class="prod-td">${boolCell(s.reader)}</td>
+    <td class="prod-td">${boolCell(s.stand)}</td>
+    <td class="prod-td">${boolCell(s.terminal)}</td>
+    <td class="prod-td">${boolCell(s.handheld)}</td>
+    <td class="prod-td">${boolCell(s.register)}</td>
     <td style="text-align:center">${photoBtn(s)}</td>
     <td style="font-size:12px;color:var(--text-light);white-space:nowrap">${s.storeNum||''}</td>
   </tr>`).join('');
@@ -1012,11 +1014,11 @@ function renderFixture(){
     <td>${s.prefecture}</td>
     <td>${displayCity(s.city)}</td>
     <td>${s.fixture}</td>
-    <td>${boolCell(s.reader)}</td>
-    <td>${boolCell(s.stand)}</td>
-    <td>${boolCell(s.terminal)}</td>
-    <td>${boolCell(s.handheld)}</td>
-    <td>${boolCell(s.register)}</td>
+    <td class="prod-td">${boolCell(s.reader)}</td>
+    <td class="prod-td">${boolCell(s.stand)}</td>
+    <td class="prod-td">${boolCell(s.terminal)}</td>
+    <td class="prod-td">${boolCell(s.handheld)}</td>
+    <td class="prod-td">${boolCell(s.register)}</td>
     <td style="text-align:center">${photoBtn(s)}</td>
     <td style="font-size:12px;color:var(--text-light);white-space:nowrap">${s.storeNum||''}</td>
   </tr>`).join('');
