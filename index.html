@@ -340,6 +340,15 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
 
   <div id="tab-fixture" class="tab-content">
     <div class="badge-section" id="fixtureBadgeSection"></div>
+    <div class="filters">
+      <select id="fixFilterStatus" onchange="renderFixture()">
+        <option value="">全てのステータス</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <select id="fixFilterFixture" onchange="renderFixture()"><option value="">全ての什器タイプ</option></select>
+      <select id="fixFilterRetailer" onchange="renderFixture()"><option value="">全てのRetailer</option></select>
+    </div>
     <div class="table-wrap">
       <table id="fixtureTable">
         <thead><tr>
@@ -938,6 +947,34 @@ function sortBy(col){
 
 // Fixture View
 let fixSortCol='fixture',fixSortAsc=true;
+function populateFixtureFilters(){
+  const ff=document.getElementById('fixFilterFixture');
+  const fr=document.getElementById('fixFilterRetailer');
+  const fs=document.getElementById('fixFilterStatus');
+  const curF=ff.value,curR=fr.value,curS=fs.value;
+  ff.innerHTML=`<option value="">${curLang==='ja'?'全ての什器タイプ':'All Fixture Types'}</option>`+FIXTURES.map(f=>`<option value="${f}">${f}</option>`).join('');
+  fr.innerHTML=`<option value="">${t('allRetailer')}</option>`+RETAILERS.map(r=>`<option value="${r}">${r}</option>`).join('');
+  fs.innerHTML=`<option value="">${t('allStatus')}</option><option value="Active">Active</option><option value="Inactive">Inactive</option>`;
+  ff.value=curF;fr.value=curR;fs.value=curS;
+}
+function getFixtureFiltered(){
+  let fs=[...stores];
+  const st=document.getElementById('fixFilterStatus').value;
+  const fx=document.getElementById('fixFilterFixture').value;
+  const rt=document.getElementById('fixFilterRetailer').value;
+  if(st)fs=fs.filter(s=>s.status===st);
+  if(fx)fs=fs.filter(s=>s.fixture===fx);
+  if(rt)fs=fs.filter(s=>s.retailer===rt);
+  if(fixSortCol){
+    fs.sort((a,b)=>{
+      let va=a[fixSortCol],vb=b[fixSortCol];
+      if(typeof va==='boolean'){va=va?1:0;vb=vb?1:0}
+      if(typeof va==='string')return fixSortAsc?va.localeCompare(vb):vb.localeCompare(va);
+      return fixSortAsc?(va-vb):(vb-va);
+    });
+  }
+  return fs;
+}
 function renderFixture(){
   const a=getActive();
   // Build fixture-type × retailer cards (inverse of store list badges)
@@ -961,16 +998,11 @@ function renderFixture(){
   });
   document.getElementById('fixtureBadgeSection').innerHTML=badgeHtml;
 
-  // Table: all stores sorted by fixture
-  let fs=[...stores];
-  if(fixSortCol){
-    fs.sort((a,b)=>{
-      let va=a[fixSortCol],vb=b[fixSortCol];
-      if(typeof va==='boolean'){va=va?1:0;vb=vb?1:0}
-      if(typeof va==='string')return fixSortAsc?va.localeCompare(vb):vb.localeCompare(va);
-      return fixSortAsc?(va-vb):(vb-va);
-    });
-  }
+  // Populate fixture filters
+  populateFixtureFilters();
+
+  // Table: filtered & sorted stores
+  const fs=getFixtureFiltered();
   const body=document.getElementById('fixtureBody');
   if(!fs.length){body.innerHTML=`<tr><td colspan="14" class="no-data">${t('noDataFixture')}</td></tr>`;return}
   body.innerHTML=fs.map(s=>`<tr>
