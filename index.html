@@ -282,6 +282,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
     <button class="btn btn-outline admin-only" onclick="openSettings()" style="display:none;font-size:12px;padding:5px 10px">⚙️</button>
     <button class="btn btn-warning admin-only" onclick="resetData()" style="display:none">🔄 リセット</button>
     <button class="btn btn-outline admin-only" onclick="exportLocalData()" style="display:none;font-size:12px;padding:5px 10px">📋 データ出力</button>
+    <button class="btn btn-primary admin-only" id="syncBtn" onclick="syncToGitHub()" style="display:none;font-size:12px;padding:5px 10px">☁️ 同期</button>
     <button class="btn btn-dark" id="modeBtn" onclick="toggleMode()">🔒 ビューアー</button>
     <button class="btn btn-outline" id="langBtn" onclick="toggleLang()" style="font-size:12px;padding:5px 10px">🌐 EN</button>
   </div>
@@ -802,7 +803,7 @@ function generateDemo(){
   return d.map(s=>({...s,id:genId(),storeNum:'SQ'+String(num++).padStart(4,'0'),address:s.prefecture+s.city+s.banchi,createdAt:new Date().toISOString()}));
 }
 
-function loadData(){
+async function loadData(){
   try{
     const d=localStorage.getItem(DB_KEY);
     if(d){
@@ -814,7 +815,18 @@ function loadData(){
       // Migrate: update photoFolder to new naming if old format
       stores.forEach(s=>{if(s.photoFolder&&s.storeNum&&!s.photoFolder.includes(s.storeNum)){s.photoFolder=genPhotoFolder(s);needSave=true}});
       if(needSave)saveData();
-    } else {stores=generateDemo();saveData()}
+    } else {
+      // Try fetching cloud data first
+      let loaded=false;
+      try{
+        const res=await fetch('data/stores.json?t='+Date.now());
+        if(res.ok){
+          const data=await res.json();
+          if(Array.isArray(data)&&data.length>0){stores=data;saveData();loaded=true}
+        }
+      }catch(e){}
+      if(!loaded){stores=generateDemo();saveData()}
+    }
   } catch(e){stores=generateDemo();saveData()}
 }
 function saveData(){localStorage.setItem(DB_KEY,JSON.stringify(stores))}
@@ -1701,6 +1713,27 @@ async function uploadPhotosToGH(folder,files,msgEl){
   }
 }
 
+// Cloud Sync - upload localStorage data to GitHub as data/stores.json
+const SYNC_DATA_PATH='data/stores.json';
+async function syncToGitHub(){
+  const btn=document.getElementById('syncBtn');
+  const token=getGhToken();
+  if(!token){alert(curLang==='ja'?'⚙️ 設定からGitHub Tokenを設定してください':'Set GitHub Token in ⚙️ Settings first');return}
+  if(!confirm(curLang==='ja'?`☁️ 現在の${stores.length}店舗データをGitHubに同期しますか？\n\n他のブラウザ（GitHub Pages等）でリロードすると最新データが反映されます。`:`☁️ Sync ${stores.length} stores to GitHub?\n\nOther browsers (GitHub Pages etc.) will load the latest data on reload.`))return;
+  const origText=btn.textContent;
+  btn.disabled=true;btn.textContent='☁️ 同期中...';btn.style.opacity='0.6';
+  try{
+    const json=JSON.stringify(stores,null,2);
+    const b64=btoa(unescape(encodeURIComponent(json)));
+    await ghUploadFile(SYNC_DATA_PATH,b64,`Sync store data: ${stores.length} stores (${new Date().toISOString().slice(0,16)})`);
+    btn.textContent='☁️ ✅ 同期完了';
+    setTimeout(()=>{btn.textContent=origText;btn.disabled=false;btn.style.opacity='1'},3000);
+  }catch(e){
+    alert((curLang==='ja'?'❌ 同期エラー: ':'❌ Sync error: ')+e.message);
+    btn.textContent=origText;btn.disabled=false;btn.style.opacity='1';
+  }
+}
+
 function exportLocalData(){
   const json=localStorage.getItem(DB_KEY);
   if(!json){alert('データがありません');return}
@@ -1758,9 +1791,11 @@ function loginPinKey(e,n){
 setTimeout(()=>document.getElementById('lpin1').focus(),200);
 
 // Init
-loadData();
-updateMode();
-applyLang();
+(async function(){
+  await loadData();
+  updateMode();
+  applyLang();
+})();
 </script>
 </body>
 </html>
