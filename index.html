@@ -281,6 +281,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
     <button class="btn btn-dark admin-only" onclick="openPhotoManager()" style="display:none">📷 写真管理</button>
     <button class="btn btn-outline admin-only" onclick="openSettings()" style="display:none;font-size:12px;padding:5px 10px">⚙️</button>
     <button class="btn btn-warning admin-only" onclick="resetData()" style="display:none">🔄 リセット</button>
+    <button class="btn btn-outline admin-only" onclick="exportLocalData()" style="display:none;font-size:12px;padding:5px 10px">📋 データ出力</button>
     <button class="btn btn-dark" id="modeBtn" onclick="toggleMode()">🔒 ビューアー</button>
     <button class="btn btn-outline" id="langBtn" onclick="toggleLang()" style="font-size:12px;padding:5px 10px">🌐 EN</button>
   </div>
@@ -477,7 +478,7 @@ Dummy Box, W45 CTU, W45 CTU x 2, W50 CTU, W50 CTU x 2, W90 Endcap - 4SKUs, W90 E
 </div>
 
 <script>
-const DB_KEY='square_store_db_v6';
+const DB_KEY='square_store_db_v7';
 const RETAILERS=['Yodobashi','BicCamera','Yamada-Denki','EDION','Costco','Nojima','Joshin'];
 const FIXTURES=['Dummy Box','W45 CTU','W45 CTU x 2','W50 CTU','W50 CTU x 2','W90 Endcap - 4SKUs','W90 Endcap - 3SKUs','W180 Inline','Costco Display'];
 const TOKYO23=['千代田区','中央区','港区','新宿区','文京区','台東区','墨田区','江東区','品川区','目黒区','大田区','世田谷区','渋谷区','中野区','杉並区','豊島区','北区','荒川区','板橋区','練馬区','足立区','葛飾区','江戸川区'];
@@ -793,7 +794,9 @@ function generateDemo(){
     {storeName:'ビックカメラ池袋本店',retailer:'BicCamera',prefecture:'東京都',city:'東京23区',banchi:'豊島区東池袋1-41-5',postalCode:'170-0013',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0},
     {storeName:'ビックカメラ新宿西口店',retailer:'BicCamera',prefecture:'東京都',city:'東京23区',banchi:'新宿区西新宿1-5-1 新宿西口ハルク2F〜6F',postalCode:'160-0023',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0},
     {storeName:'ビックカメラ赤坂見附駅店',retailer:'BicCamera',prefecture:'東京都',city:'東京23区',banchi:'港区赤坂3-1-6',postalCode:'107-0052',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0},
-    {storeName:'ビックカメラ立川店',retailer:'BicCamera',prefecture:'東京都',city:'立川市',banchi:'曙町2-12-2',postalCode:'190-0012',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0}
+    {storeName:'ビックカメラ立川店',retailer:'BicCamera',prefecture:'東京都',city:'立川市',banchi:'曙町2-12-2',postalCode:'190-0012',status:'Active',reader:true,stand:false,terminal:false,handheld:false,register:false,fixture:'Dummy Box',population:0},
+    {storeName:'エディオン 那覇メインプレイス',retailer:'EDION',prefecture:'沖縄県',city:'那覇市',banchi:'おもろまち4-4-9',postalCode:'900-0006',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:false,fixture:'W45 CTU x 2',population:0},
+    {storeName:'エディオン 具志川メインシティ',retailer:'EDION',prefecture:'沖縄県',city:'うるま市',banchi:'字江洲450-1',postalCode:'904-2244',status:'Active',reader:true,stand:false,terminal:true,handheld:true,register:false,fixture:'W45 CTU x 2',population:0}
   ];
   let num=1;
   return d.map(s=>({...s,id:genId(),storeNum:'SQ'+String(num++).padStart(4,'0'),address:s.prefecture+s.city+s.banchi,createdAt:new Date().toISOString()}));
@@ -1696,6 +1699,28 @@ async function uploadPhotosToGH(folder,files,msgEl){
     msgEl.innerHTML=`<span style="color:var(--red)">❌ エラー: ${e.message}</span>`;
     return false;
   }
+}
+
+function exportLocalData(){
+  const json=localStorage.getItem(DB_KEY);
+  if(!json){alert('データがありません');return}
+  const data=JSON.parse(json);
+  const area=document.createElement('textarea');
+  area.value=JSON.stringify(data);
+  area.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;font-size:11px;font-family:monospace;padding:10px;white-space:pre-wrap;word-break:break-all';
+  const closeBtn=document.createElement('button');
+  closeBtn.textContent='✕ 閉じる';
+  closeBtn.style.cssText='position:fixed;top:10px;right:10px;z-index:100000;padding:8px 16px;background:#e53935;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px';
+  const copyBtn=document.createElement('button');
+  copyBtn.textContent='📋 コピー';
+  copyBtn.style.cssText='position:fixed;top:10px;right:100px;z-index:100000;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px';
+  copyBtn.onclick=()=>{area.select();document.execCommand('copy');copyBtn.textContent='✅ コピー済み';setTimeout(()=>{copyBtn.textContent='📋 コピー'},2000)};
+  closeBtn.onclick=()=>{area.remove();closeBtn.remove();copyBtn.remove();infoEl.remove()};
+  const infoEl=document.createElement('div');
+  infoEl.style.cssText='position:fixed;top:10px;left:10px;z-index:100000;background:#fff;padding:6px 12px;border-radius:6px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  infoEl.textContent=`📊 ${data.length}店舗 | ${(JSON.stringify(data).length/1024).toFixed(1)}KB`;
+  document.body.appendChild(area);document.body.appendChild(closeBtn);document.body.appendChild(copyBtn);document.body.appendChild(infoEl);
+  area.focus();area.select();
 }
 
 function resetData(){
